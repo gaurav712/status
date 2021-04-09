@@ -1,5 +1,6 @@
 CC=gcc
 CFLAGS=-l asound -Wall
+USER=$(shell whoami)
 
 status: status.o network.o battery.o volume.o
 	$(CC) $(CFLAGS) status.o network.o battery.o volume.o -o status
@@ -19,8 +20,11 @@ volume.o: volume.c
 clean:
 	rm -f status status.o network.o battery.o volume.o
 
-install:
+install: status
 	cp ./status /usr/local/bin/status
+
+install_font:
+	[[ $(USER) == "root" ]] && cp ./font/feather.ttf /usr/share/fonts/feather.ttf || mkdir -p ~/.local/share/fonts && cp ./font/feather.ttf ~/.local/share/fonts/feather.ttf
 
 uninstall:
 	rm -f /usr/local/bin/status

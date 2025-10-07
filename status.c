@@ -6,11 +6,11 @@
 #include <string.h>
 #include <time.h>
 
-#define SEPARATOR_SYMBOL "  \uf6dc  "
-#define VOLUME_SYMBOL "\uf485"
+#define SEPARATOR_SYMBOL " : "
+#define VOLUME_SYMBOL "\uf485 "
 #define MUTE_SYMBOL "\uf466"
-#define DOWNLOAD_SYMBOL "\uf544"
-#define UPLOAD_SYMBOL "\uf55c"
+#define DOWNLOAD_SYMBOL "\uf019"
+#define UPLOAD_SYMBOL "\uf093 "
 #define WIFI_ENABLED_SYMBOL "\uf1eb"
 #define WIFI_DISABLED_SYMBOL "\uf072"
 #define RFKILL_DEV_NAME_LEN 7
@@ -72,7 +72,7 @@ int main(void) {
         }
     }
 
-    printf("  %hd%%", battery_capacity);
+    printf(" %hd%%", battery_capacity);
 
     printf(SEPARATOR_SYMBOL);
 

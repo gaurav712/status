@@ -11,8 +11,8 @@
 #define MUTE_SYMBOL "\uf466"
 #define DOWNLOAD_SYMBOL "\uf019"
 #define UPLOAD_SYMBOL "\uf093 "
-#define WIFI_ENABLED_SYMBOL "\uf1eb"
-#define WIFI_DISABLED_SYMBOL "\uf072"
+#define WIFI_ENABLED_SYMBOL "\uf1eb "
+#define WIFI_DISABLED_SYMBOL "\uf072 "
 #define RFKILL_DEV_NAME_LEN 7
 #define BATTERY_NAME_LEN 5
 #define BATTERY_STATUS_LEN 12

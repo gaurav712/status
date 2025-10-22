@@ -179,7 +179,7 @@ short interface_is_wireless(const char *device) {
 
     int sock = -1;
     struct iwreq iw;
-    char protocol[IFNAMSIZ]  = {0};
+    char protocol[IFNAMSIZ];
 
     memset(&iw, 0, sizeof(iw));
     strcpy(iw.ifr_name, device);
@@ -190,12 +190,12 @@ short interface_is_wireless(const char *device) {
     }
 
     if (ioctl(sock, SIOCGIWNAME, &iw) != -1) {
-        if (protocol)
-            strcpy(protocol, iw.u.name);
+        strcpy(protocol, iw.u.name);
         close(sock);
         return 1;
     }
 
+    close(sock);
     return 0;
 }
 

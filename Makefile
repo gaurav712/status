@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-l asound -Wall
+CFLAGS=-l asound -Wall -lpulse
 
 status: status.o network.o battery.o volume.o bluetooth.o
 	$(CC) $(CFLAGS) status.o network.o battery.o volume.o bluetooth.o -o status

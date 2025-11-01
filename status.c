@@ -8,7 +8,9 @@
 #include <time.h>
 
 #define SEPARATOR_SYMBOL " : "
-#define VOLUME_SYMBOL "\uf485"
+#define VOLUME_SPEAKER_SYMBOL "\uf485"
+#define VOLUME_HEADPHONE_SYMBOL "\U000F02CB"
+#define VOLUME_BLUETOOTH_HEADSET_SYMBOL "\U000F00B0"
 #define MUTE_SYMBOL "\uf466"
 #define DOWNLOAD_SYMBOL "\uf019"
 #define UPLOAD_SYMBOL "\uf093 "
@@ -46,8 +48,17 @@ int main(void) {
                                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
     /* -----VOLUME----- */
-    if (get_mute()) {
-        printf("%s %hd%%", VOLUME_SYMBOL, get_volume());
+    if (!get_mute()) {
+        int icon_type = get_volume_icon_type();
+        const char *icon;
+        if (icon_type == VOLUME_ICON_BLUETOOTH_HEADSET) {
+            icon = VOLUME_BLUETOOTH_HEADSET_SYMBOL;
+        } else if (icon_type == VOLUME_ICON_HEADPHONE) {
+            icon = VOLUME_HEADPHONE_SYMBOL;
+        } else {
+            icon = VOLUME_SPEAKER_SYMBOL;
+        }
+        printf("%s %hd%%", icon, get_volume());
     } else {
         printf(MUTE_SYMBOL);
     }

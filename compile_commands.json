@@ -1,0 +1,82 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-I/usr/include/dbus-1.0",
+      "-I/usr/lib/dbus-1.0/include",
+      "-I/usr/include/elogind",
+      "-c",
+      "-o",
+      "status.o",
+      "status.c"
+    ],
+    "directory": "/home/gaurav/Projects/status",
+    "file": "/home/gaurav/Projects/status/status.c",
+    "output": "/home/gaurav/Projects/status/status.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-I/usr/include/dbus-1.0",
+      "-I/usr/lib/dbus-1.0/include",
+      "-I/usr/include/elogind",
+      "-c",
+      "-o",
+      "network.o",
+      "network.c"
+    ],
+    "directory": "/home/gaurav/Projects/status",
+    "file": "/home/gaurav/Projects/status/network.c",
+    "output": "/home/gaurav/Projects/status/network.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-I/usr/include/dbus-1.0",
+      "-I/usr/lib/dbus-1.0/include",
+      "-I/usr/include/elogind",
+      "-c",
+      "-o",
+      "battery.o",
+      "battery.c"
+    ],
+    "directory": "/home/gaurav/Projects/status",
+    "file": "/home/gaurav/Projects/status/battery.c",
+    "output": "/home/gaurav/Projects/status/battery.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-I/usr/include/dbus-1.0",
+      "-I/usr/lib/dbus-1.0/include",
+      "-I/usr/include/elogind",
+      "-c",
+      "-o",
+      "volume.o",
+      "volume.c"
+    ],
+    "directory": "/home/gaurav/Projects/status",
+    "file": "/home/gaurav/Projects/status/volume.c",
+    "output": "/home/gaurav/Projects/status/volume.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-Wall",
+      "-I/usr/include/dbus-1.0",
+      "-I/usr/lib/dbus-1.0/include",
+      "-I/usr/include/elogind",
+      "-c",
+      "-o",
+      "bluetooth.o",
+      "bluetooth.c"
+    ],
+    "directory": "/home/gaurav/Projects/status",
+    "file": "/home/gaurav/Projects/status/bluetooth.c",
+    "output": "/home/gaurav/Projects/status/bluetooth.o"
+  }
+]

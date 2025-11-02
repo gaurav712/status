@@ -26,18 +26,19 @@
 #define BATTERY_THREE_QUARTERS_SYMBOL "\U000f0080"
 #define BATTERY_FULL_SYMBOL "\U000f0079"
 #define BLUETOOTH_SYMBOL "\uf294"
-#define BLUETOOTH_CONNECTED_SYMBOL "\uf294"
+#define BLUETOOTH_CONNECTED_SYMBOL "\U000F00B1"
+#define BLUETOOTH_DISABLED_SYMBOL "\U000F00B2"
+#define BLUETOOTH_ON_NOT_CONNECTED_SYMBOL "\uf294"
 
 #define BATTERY_DISCHARGING_STATE "Discharging"
 
 int main(void) {
 
     char rfkill_device[RFKILL_DEV_NAME_LEN], battery_name[BATTERY_NAME_LEN],
-        battery_status[BATTERY_STATUS_LEN], bluetooth_rfkill_device[BLUETOOTH_RFKILL_DEV_NAME_LEN],
+        battery_status[BATTERY_STATUS_LEN],
         bluetooth_device_name[BLUETOOTH_DEVICE_NAME_LEN];
     float down_bytes, up_bytes;
-    int mute;
-    short battery_capacity, volume;
+    short battery_capacity;
     time_t current_time = time(NULL);
     struct tm tm = *localtime(&current_time);
 
@@ -121,27 +122,29 @@ int main(void) {
 
     /* -----BLUETOOTH----- */
 
-    find_bluetooth_rfkill_device(bluetooth_rfkill_device);
+    if (bluetooth_is_blocked()) {
 
-    if (bluetooth_is_enabled(bluetooth_rfkill_device)) {
+        /* -----Bluetooth is blocked (soft or hard)----- */
+        printf("%s", BLUETOOTH_DISABLED_SYMBOL);
 
-        /* -----Bluetooth is enabled----- */
+    } else {
+
+        /* -----Bluetooth is enabled (not blocked)----- */
         if (bluetooth_is_connected()) {
 
             /* -----Bluetooth is connected, get device name----- */
             get_connected_bluetooth_device_name(bluetooth_device_name);
-            printf("%s %s", BLUETOOTH_CONNECTED_SYMBOL, bluetooth_device_name);
+            if (bluetooth_device_name[0] != '\0') {
+                printf("%s %s", BLUETOOTH_CONNECTED_SYMBOL, bluetooth_device_name);
+            } else {
+                printf("%s", BLUETOOTH_CONNECTED_SYMBOL);
+            }
 
         } else {
 
             /* -----Bluetooth enabled but not connected----- */
-            printf("%s", BLUETOOTH_SYMBOL);
+            printf("%s", BLUETOOTH_ON_NOT_CONNECTED_SYMBOL);
         }
-
-    } else {
-
-        /* -----Bluetooth is disabled----- */
-        printf("%s", BLUETOOTH_SYMBOL);
     }
     printf(SEPARATOR_SYMBOL);
 

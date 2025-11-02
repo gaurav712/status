@@ -1,23 +1,24 @@
 CC=gcc
-CFLAGS=-l asound -Wall -lpulse
+CFLAGS=-Wall $(shell pkg-config --cflags dbus-1)
+LDFLAGS=-l asound -lpulse -ldbus-1
 
 status: status.o network.o battery.o volume.o bluetooth.o
-	$(CC) $(CFLAGS) status.o network.o battery.o volume.o bluetooth.o -o status
+	$(CC) $(LDFLAGS) status.o network.o battery.o volume.o bluetooth.o -o status
 
 status.o: status.c
-	$(CC) -c status.c -o status.o
+	$(CC) $(CFLAGS) -c status.c -o status.o
 
 network.o: network.c
-	$(CC) -c network.c -o network.o
+	$(CC) $(CFLAGS) -c network.c -o network.o
 
 bluetooth.o: bluetooth.c
-	$(CC) -c bluetooth.c -o bluetooth.o
+	$(CC) $(CFLAGS) -c bluetooth.c -o bluetooth.o
 
 battery.o: battery.c
-	$(CC) -c battery.c -o battery.o
+	$(CC) $(CFLAGS) -c battery.c -o battery.o
 
 volume.o: volume.c
-	$(CC) -c volume.c -o volume.o
+	$(CC) $(CFLAGS) -c volume.c -o volume.o
 
 clean:
 	rm -f status status.o network.o battery.o volume.o bluetooth.o

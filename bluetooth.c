@@ -1,294 +1,474 @@
 #include "bluetooth.h"
 
 #include <stdio.h>
-#include <dirent.h>
-#include <limits.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <stddef.h>
+#include <dbus/dbus.h>
 
-#define RFKILL_DIR  "/sys/class/rfkill/"
-#define RFKILL_DEV_TYPE_FILE_NAME   "/type"
-#define RFKILL_DEV_TYPE_NAME   "bluetooth"
-#define RFKILL_DEV_STATE_FILE_NAME  "/state"
 #define BLUETOOTH_DEVICE_NAME_LEN 50
-#define BLUETOOTH_RFKILL_DEV_NAME_LEN 10
+#define BLUETOOTH_BUS_NAME "org.bluez"
+#define BLUETOOTH_ADAPTER_INTERFACE "org.bluez.Adapter1"
+#define BLUETOOTH_DEVICE_INTERFACE "org.bluez.Device1"
+#define DBUS_PROPERTIES_INTERFACE "org.freedesktop.DBus.Properties"
+#define DBUS_OBJECTMANAGER_INTERFACE "org.freedesktop.DBus.ObjectManager"
 
-char bluetooth_temp_str[PATH_MAX];
-
-void check_bluetooth_device_type(char *rfkill_device_dir_path) {
-
-    FILE *fp;
-    char full_path[PATH_MAX];
-    size_t path_len = strlen(rfkill_device_dir_path);
-    size_t type_file_len = strlen(RFKILL_DEV_TYPE_FILE_NAME);
-
-    /* Check if we have enough space for the concatenation */
-    if (path_len + type_file_len >= PATH_MAX) {
-        fprintf(stderr, "Path too long for rfkill device type file\n");
-        exit(1);
-    }
-
-    /* Create a copy of the path to avoid modifying the original */
-    strncpy(full_path, rfkill_device_dir_path, PATH_MAX - 1);
-    full_path[PATH_MAX - 1] = '\0';
-    strncat(full_path, RFKILL_DEV_TYPE_FILE_NAME, PATH_MAX - path_len - 1);
-
-    if((fp = fopen(full_path, "r")) == NULL) {
-        perror("fopen() error!");
-        exit(1);
-    }
-
-    /* Use fgets with bounds checking instead of fscanf */
-    if (fgets(bluetooth_temp_str, PATH_MAX, fp) == NULL) {
-        fprintf(stderr, "Failed to read device type\n");
-        fclose(fp);
-        exit(1);
-    }
-
-    /* Remove newline if present */
-    bluetooth_temp_str[strcspn(bluetooth_temp_str, "\n")] = '\0';
-
-    if((fclose(fp)) == EOF) {
-        perror("fclose() error!");
-        exit(1);
-    }
-}
-
-void find_bluetooth_rfkill_device(char *rfkill_device) {
-
-    DIR *dirp;
-    struct dirent *dir = NULL;
-    char rfkill_device_dir_path[PATH_MAX];
-    size_t rfkill_dir_len = strlen(RFKILL_DIR);
-
-    /* Initialize the output parameter */
-    rfkill_device[0] = '\0';
-
-    if((dirp = opendir(RFKILL_DIR)) == NULL) {
-        perror("opendir() failed!");
-        exit(1);
-    }
-
-    while(1) {
-
-        /* Use strncpy with bounds checking */
-        strncpy(rfkill_device_dir_path, RFKILL_DIR, PATH_MAX - 1);
-        rfkill_device_dir_path[PATH_MAX - 1] = '\0';
-
-        if((dir = readdir(dirp)) == NULL) {
-            if(errno) {
-                perror("readdir() failed!");
-                exit(1);
-            } else {
-                break;
-            }
-        } else {
-            if(dir->d_name[0] == '.') {
-                continue;
-            } else {
-                size_t current_len = strlen(rfkill_device_dir_path);
-                size_t name_len = strlen(dir->d_name);
-                
-                /* Check if we have enough space for the concatenation */
-                if (current_len + 1 + name_len >= PATH_MAX) {
-                    fprintf(stderr, "Path too long for rfkill device directory\n");
-                    continue;
-                }
-                
-                strncat(rfkill_device_dir_path, dir->d_name, PATH_MAX - current_len - 1);
-                
-                check_bluetooth_device_type(rfkill_device_dir_path);
-
-                if (!(strcmp(bluetooth_temp_str, RFKILL_DEV_TYPE_NAME))) {
-                    strncpy(rfkill_device, dir->d_name, BLUETOOTH_RFKILL_DEV_NAME_LEN - 1);
-                    rfkill_device[BLUETOOTH_RFKILL_DEV_NAME_LEN - 1] = '\0';
-                    break;
-                } else {
-                    continue;
-                }
-            }
-        }
-    }
-
-    if((closedir(dirp)) == -1) {
-        perror("closedir() failed!");
-        exit(1);
-    }
-}
-
-short bluetooth_is_enabled(char *rfkill_device) {
-
-    FILE *fp;
-    short state = 0;
-    size_t rfkill_dir_len = strlen(RFKILL_DIR);
-    size_t device_len = strlen(rfkill_device);
-    size_t state_file_len = strlen(RFKILL_DEV_STATE_FILE_NAME);
-
-
-    /* Check if we have enough space for the full path */
-    if (rfkill_dir_len + 1 + device_len + state_file_len >= PATH_MAX) {
-        fprintf(stderr, "Path too long for rfkill device state file\n");
-        exit(1);
-    }
-
-    strncpy(bluetooth_temp_str, RFKILL_DIR, PATH_MAX - 1);
-    bluetooth_temp_str[PATH_MAX - 1] = '\0';
-    
-    strncat(bluetooth_temp_str, rfkill_device, PATH_MAX - rfkill_dir_len - 1);
-    strncat(bluetooth_temp_str, RFKILL_DEV_STATE_FILE_NAME, 
-            PATH_MAX - rfkill_dir_len - device_len - 1);
-
-    if((fp = fopen(bluetooth_temp_str, "r")) == NULL) {
-        perror("fopen() error!");
-        exit(1);
-    }
-
-    if (fscanf(fp, "%hd", &state) != 1) {
-        fprintf(stderr, "Failed to read bluetooth state\n");
-        fclose(fp);
-        exit(1);
-    }
-
-    if((fclose(fp)) == EOF) {
-        perror("fclose() error!");
-        exit(1);
-    }
-
-    return(state);
-}
-
-short bluetooth_is_connected(void) {
-
-    char device_path[PATH_MAX];
-    DIR *dirp;
-    struct dirent *dir = NULL;
-    const char *bluetooth_class_dir = "/sys/class/bluetooth/";
-    size_t bluetooth_dir_len = strlen(bluetooth_class_dir);
-
-    /* Check if bluetooth controller is powered on */
-    if((dirp = opendir(bluetooth_class_dir)) == NULL) {
+/* Helper function to check D-Bus error */
+static int dbus_check_error(DBusError *error) {
+    if (dbus_error_is_set(error)) {
+        dbus_error_free(error);
         return 0;
     }
+    return 1;
+}
 
-    /* Look for connected devices by checking /sys/class/bluetooth/hci0/device/ */
-    while((dir = readdir(dirp)) != NULL) {
-        if(dir->d_name[0] == '.') {
+/* Get property value from D-Bus object */
+static DBusMessage* get_property(DBusConnection *conn, const char *path, 
+                                 const char *interface, const char *property) {
+    DBusError error;
+    DBusMessage *msg, *reply;
+    
+    dbus_error_init(&error);
+    
+    msg = dbus_message_new_method_call(
+        BLUETOOTH_BUS_NAME,
+        path,
+        DBUS_PROPERTIES_INTERFACE,
+        "Get"
+    );
+    
+    if (!msg) {
+        return NULL;
+    }
+    
+    dbus_message_append_args(msg,
+        DBUS_TYPE_STRING, &interface,
+        DBUS_TYPE_STRING, &property,
+        DBUS_TYPE_INVALID
+    );
+    
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &error);
+    dbus_message_unref(msg);
+    
+    if (!dbus_check_error(&error)) {
+        if (reply) dbus_message_unref(reply);
+        return NULL;
+    }
+    
+    return reply;
+}
+
+/* Find adapter paths - try common paths first, then enumerate */
+static int find_adapter_path(DBusConnection *conn, char *adapter_path, size_t path_len) {
+    DBusError error;
+    DBusMessage *msg, *reply;
+    DBusMessageIter iter, array_iter, entry_iter, dict_iter, entry_iter2;
+    const char *object_path;
+    const char *interface_name;
+    
+    /* First try common adapter paths */
+    const char *common_paths[] = {"/org/bluez/hci1", "/org/bluez/hci0"};
+    int i;
+    
+    for (i = 0; i < 2; i++) {
+        DBusMessage *test_reply = get_property(conn, common_paths[i], BLUETOOTH_ADAPTER_INTERFACE, "Powered");
+        if (test_reply) {
+            dbus_message_unref(test_reply);
+            strncpy(adapter_path, common_paths[i], path_len - 1);
+            adapter_path[path_len - 1] = '\0';
+            return 1;
+        }
+    }
+    
+    /* If common paths don't work, enumerate via GetManagedObjects */
+    dbus_error_init(&error);
+    
+    msg = dbus_message_new_method_call(
+        BLUETOOTH_BUS_NAME,
+        "/",
+        DBUS_OBJECTMANAGER_INTERFACE,
+        "GetManagedObjects"
+    );
+    
+    if (!msg) {
+        return 0;
+    }
+    
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &error);
+    dbus_message_unref(msg);
+    
+    if (!dbus_check_error(&error) || !reply) {
+        if (reply) dbus_message_unref(reply);
+        return 0;
+    }
+    
+    if (!dbus_message_iter_init(reply, &iter)) {
+        dbus_message_unref(reply);
+        return 0;
+    }
+    
+    if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
+        dbus_message_unref(reply);
+        return 0;
+    }
+    
+    dbus_message_iter_recurse(&iter, &array_iter);
+    
+    int found_count = 0;
+    char last_adapter[256] = "";
+    
+    while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_DICT_ENTRY) {
+        dbus_message_iter_recurse(&array_iter, &entry_iter);
+        
+        /* Get object path */
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_OBJECT_PATH) {
+            dbus_message_iter_next(&array_iter);
             continue;
         }
         
-        /* Check if this is a bluetooth adapter */
-        if(strncmp(dir->d_name, "hci", 3) == 0) {
-            size_t name_len = strlen(dir->d_name);
-            const char *device_suffix = "/device/";
-            size_t suffix_len = strlen(device_suffix);
+        dbus_message_iter_get_basic(&entry_iter, &object_path);
+        dbus_message_iter_next(&entry_iter);
+        
+        /* Check interfaces dictionary */
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_ARRAY) {
+            dbus_message_iter_next(&array_iter);
+            continue;
+        }
+        
+        dbus_message_iter_recurse(&entry_iter, &dict_iter);
+        
+        while (dbus_message_iter_get_arg_type(&dict_iter) == DBUS_TYPE_DICT_ENTRY) {
+            dbus_message_iter_recurse(&dict_iter, &entry_iter2);
             
-            /* Check if we have enough space for the full path */
-            if (bluetooth_dir_len + name_len + suffix_len >= PATH_MAX) {
+            if (dbus_message_iter_get_arg_type(&entry_iter2) != DBUS_TYPE_STRING) {
+                dbus_message_iter_next(&dict_iter);
                 continue;
             }
             
-            strncpy(device_path, bluetooth_class_dir, PATH_MAX - 1);
-            device_path[PATH_MAX - 1] = '\0';
+            dbus_message_iter_get_basic(&entry_iter2, &interface_name);
             
-            strncat(device_path, dir->d_name, PATH_MAX - bluetooth_dir_len - 1);
-            strncat(device_path, device_suffix, PATH_MAX - bluetooth_dir_len - name_len - 1);
-            
-            /* Check if there are connected devices */
-            if(access(device_path, F_OK) == 0) {
-                closedir(dirp);
-                return 1;
+            if (strcmp(interface_name, BLUETOOTH_ADAPTER_INTERFACE) == 0) {
+                found_count++;
+                strncpy(last_adapter, object_path, sizeof(last_adapter) - 1);
+                last_adapter[sizeof(last_adapter) - 1] = '\0';
             }
+            
+            dbus_message_iter_next(&dict_iter);
         }
+        
+        dbus_message_iter_next(&array_iter);
     }
-
-    closedir(dirp);
+    
+    dbus_message_unref(reply);
+    
+    if (found_count > 0) {
+        /* Use the last adapter found (skip first one used for volume) */
+        strncpy(adapter_path, last_adapter, path_len - 1);
+        adapter_path[path_len - 1] = '\0';
+        return 1;
+    }
+    
     return 0;
 }
 
-void get_connected_bluetooth_device_name(char *device_name) {
-
-    FILE *fp;
-    char line[256];
-    char device_path[PATH_MAX];
-    DIR *dirp;
-    struct dirent *dir = NULL;
-    const char *bluetooth_class_dir = "/sys/class/bluetooth/";
-    size_t bluetooth_dir_len = strlen(bluetooth_class_dir);
-
-    /* Initialize device name safely */
-    strncpy(device_name, "Unknown", BLUETOOTH_DEVICE_NAME_LEN - 1);
-    device_name[BLUETOOTH_DEVICE_NAME_LEN - 1] = '\0';
-
-    /* Try to get device name from bluetoothctl or other methods */
-    if((fp = popen("bluetoothctl info 2>/dev/null | grep 'Name:' | head -1 | cut -d' ' -f2-", "r")) != NULL) {
-        if(fgets(device_name, BLUETOOTH_DEVICE_NAME_LEN, fp) != NULL) {
-            /* Remove newline if present */
-            device_name[strcspn(device_name, "\n")] = '\0';
-            pclose(fp);
-            return;
+/* Check if bluetooth adapter is powered (enabled) */
+short bluetooth_is_blocked(void) {
+    DBusConnection *conn;
+    DBusError error;
+    char adapter_path[256];
+    DBusMessage *reply;
+    DBusMessageIter iter, variant_iter;
+    dbus_bool_t powered = 0;
+    
+    dbus_error_init(&error);
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+    
+    if (!dbus_check_error(&error) || !conn) {
+        return 1; /* Assume blocked on error */
+    }
+    
+    if (!find_adapter_path(conn, adapter_path, sizeof(adapter_path))) {
+        dbus_connection_unref(conn);
+        return 1; /* No adapter found, assume blocked */
+    }
+    
+    reply = get_property(conn, adapter_path, BLUETOOTH_ADAPTER_INTERFACE, "Powered");
+    if (!reply) {
+        dbus_connection_unref(conn);
+        return 1;
+    }
+    
+    if (dbus_message_iter_init(reply, &iter)) {
+        if (dbus_message_iter_get_arg_type(&iter) == DBUS_TYPE_VARIANT) {
+            dbus_message_iter_recurse(&iter, &variant_iter);
+            if (dbus_message_iter_get_arg_type(&variant_iter) == DBUS_TYPE_BOOLEAN) {
+                dbus_message_iter_get_basic(&variant_iter, &powered);
+            }
         }
-        pclose(fp);
     }
+    
+    dbus_message_unref(reply);
+    dbus_connection_unref(conn);
+    
+    /* Return 1 if blocked (not powered), 0 if unblocked (powered) */
+    return powered ? 0 : 1;
+}
 
-    /* Fallback: try to read from /sys/class/bluetooth/ */
-    if((dirp = opendir(bluetooth_class_dir)) == NULL) {
-        return;
+/* Check if any bluetooth device is connected */
+short bluetooth_is_connected(void) {
+    DBusConnection *conn;
+    DBusError error;
+    DBusMessage *msg, *reply;
+    DBusMessageIter iter, array_iter, entry_iter, dict_iter, entry_iter2;
+    const char *object_path;
+    const char *interface_name;
+    dbus_bool_t connected = 0;
+    
+    dbus_error_init(&error);
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+    
+    if (!dbus_check_error(&error) || !conn) {
+        return 0;
     }
-
-    while((dir = readdir(dirp)) != NULL) {
-        if(dir->d_name[0] == '.') {
+    
+    msg = dbus_message_new_method_call(
+        BLUETOOTH_BUS_NAME,
+        "/",
+        DBUS_OBJECTMANAGER_INTERFACE,
+        "GetManagedObjects"
+    );
+    
+    if (!msg) {
+        dbus_connection_unref(conn);
+        return 0;
+    }
+    
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &error);
+    dbus_message_unref(msg);
+    
+    if (!dbus_check_error(&error) || !reply) {
+        if (reply) dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return 0;
+    }
+    
+    if (!dbus_message_iter_init(reply, &iter)) {
+        dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return 0;
+    }
+    
+    if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
+        dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return 0;
+    }
+    
+    dbus_message_iter_recurse(&iter, &array_iter);
+    
+    while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_DICT_ENTRY) {
+        dbus_message_iter_recurse(&array_iter, &entry_iter);
+        
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_OBJECT_PATH) {
+            dbus_message_iter_next(&array_iter);
             continue;
         }
         
-        if(strncmp(dir->d_name, "hci", 3) == 0) {
-            size_t name_len = strlen(dir->d_name);
-            const char *device_suffix = "/device/";
-            const char *uevent_suffix = "uevent";
-            size_t suffix_len = strlen(device_suffix);
-            size_t uevent_len = strlen(uevent_suffix);
+        dbus_message_iter_get_basic(&entry_iter, &object_path);
+        dbus_message_iter_next(&entry_iter);
+        
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_ARRAY) {
+            dbus_message_iter_next(&array_iter);
+            continue;
+        }
+        
+        dbus_message_iter_recurse(&entry_iter, &dict_iter);
+        
+        while (dbus_message_iter_get_arg_type(&dict_iter) == DBUS_TYPE_DICT_ENTRY) {
+            dbus_message_iter_recurse(&dict_iter, &entry_iter2);
             
-            /* Check if we have enough space for the full path */
-            if (bluetooth_dir_len + name_len + suffix_len + uevent_len >= PATH_MAX) {
+            if (dbus_message_iter_get_arg_type(&entry_iter2) != DBUS_TYPE_STRING) {
+                dbus_message_iter_next(&dict_iter);
                 continue;
             }
             
-            strncpy(device_path, bluetooth_class_dir, PATH_MAX - 1);
-            device_path[PATH_MAX - 1] = '\0';
+            dbus_message_iter_get_basic(&entry_iter2, &interface_name);
             
-            strncat(device_path, dir->d_name, PATH_MAX - bluetooth_dir_len - 1);
-            strncat(device_path, device_suffix, PATH_MAX - bluetooth_dir_len - name_len - 1);
-            
-            /* Try to find device name in sysfs */
-            if(access(device_path, F_OK) == 0) {
-                /* Look for device name in various sysfs files */
-                strncat(device_path, uevent_suffix, 
-                        PATH_MAX - bluetooth_dir_len - name_len - suffix_len - 1);
-                
-                if((fp = fopen(device_path, "r")) != NULL) {
-                    while(fgets(line, sizeof(line), fp)) {
-                        if(strncmp(line, "DEVNAME=", 8) == 0) {
-                            size_t name_start = 8;
-                            size_t name_len_available = BLUETOOTH_DEVICE_NAME_LEN - 1;
-                            
-                            strncpy(device_name, line + name_start, name_len_available);
-                            device_name[name_len_available] = '\0';
-                            
-                            /* Remove newline if present */
-                            device_name[strcspn(device_name, "\n")] = '\0';
-                            fclose(fp);
-                            closedir(dirp);
-                            return;
+            if (strcmp(interface_name, BLUETOOTH_DEVICE_INTERFACE) == 0) {
+                DBusMessage *prop_reply = get_property(conn, object_path, BLUETOOTH_DEVICE_INTERFACE, "Connected");
+                if (prop_reply) {
+                    DBusMessageIter prop_iter, prop_variant;
+                    if (dbus_message_iter_init(prop_reply, &prop_iter)) {
+                        if (dbus_message_iter_get_arg_type(&prop_iter) == DBUS_TYPE_VARIANT) {
+                            dbus_message_iter_recurse(&prop_iter, &prop_variant);
+                            if (dbus_message_iter_get_arg_type(&prop_variant) == DBUS_TYPE_BOOLEAN) {
+                                dbus_message_iter_get_basic(&prop_variant, &connected);
+                                if (connected) {
+                                    dbus_message_unref(prop_reply);
+                                    dbus_message_unref(reply);
+                                    dbus_connection_unref(conn);
+                                    return 1;
+                                }
+                            }
                         }
                     }
-                    fclose(fp);
+                    dbus_message_unref(prop_reply);
                 }
             }
+            
+            dbus_message_iter_next(&dict_iter);
         }
+        
+        dbus_message_iter_next(&array_iter);
     }
+    
+    dbus_message_unref(reply);
+    dbus_connection_unref(conn);
+    
+    return 0;
+}
 
-    closedir(dirp);
+/* Get name of connected bluetooth device */
+void get_connected_bluetooth_device_name(char *device_name) {
+    DBusConnection *conn;
+    DBusError error;
+    DBusMessage *msg, *reply;
+    DBusMessageIter iter, array_iter, entry_iter, dict_iter, entry_iter2;
+    const char *object_path;
+    const char *interface_name;
+    
+    device_name[0] = '\0';
+    
+    dbus_error_init(&error);
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+    
+    if (!dbus_check_error(&error) || !conn) {
+        return;
+    }
+    
+    msg = dbus_message_new_method_call(
+        BLUETOOTH_BUS_NAME,
+        "/",
+        DBUS_OBJECTMANAGER_INTERFACE,
+        "GetManagedObjects"
+    );
+    
+    if (!msg) {
+        dbus_connection_unref(conn);
+        return;
+    }
+    
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &error);
+    dbus_message_unref(msg);
+    
+    if (!dbus_check_error(&error) || !reply) {
+        if (reply) dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return;
+    }
+    
+    if (!dbus_message_iter_init(reply, &iter)) {
+        dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return;
+    }
+    
+    if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
+        dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return;
+    }
+    
+    dbus_message_iter_recurse(&iter, &array_iter);
+    
+    while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_DICT_ENTRY) {
+        dbus_message_iter_recurse(&array_iter, &entry_iter);
+        
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_OBJECT_PATH) {
+            dbus_message_iter_next(&array_iter);
+            continue;
+        }
+        
+        dbus_message_iter_get_basic(&entry_iter, &object_path);
+        dbus_message_iter_next(&entry_iter);
+        
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_ARRAY) {
+            dbus_message_iter_next(&array_iter);
+            continue;
+        }
+        
+        dbus_message_iter_recurse(&entry_iter, &dict_iter);
+        
+        while (dbus_message_iter_get_arg_type(&dict_iter) == DBUS_TYPE_DICT_ENTRY) {
+            dbus_message_iter_recurse(&dict_iter, &entry_iter2);
+            
+            if (dbus_message_iter_get_arg_type(&entry_iter2) != DBUS_TYPE_STRING) {
+                dbus_message_iter_next(&dict_iter);
+                continue;
+            }
+            
+            dbus_message_iter_get_basic(&entry_iter2, &interface_name);
+            
+            if (strcmp(interface_name, BLUETOOTH_DEVICE_INTERFACE) == 0) {
+                DBusMessage *connected_reply = get_property(conn, object_path, BLUETOOTH_DEVICE_INTERFACE, "Connected");
+                dbus_bool_t connected = 0;
+                
+                if (connected_reply) {
+                    DBusMessageIter connected_iter, connected_variant;
+                    if (dbus_message_iter_init(connected_reply, &connected_iter)) {
+                        if (dbus_message_iter_get_arg_type(&connected_iter) == DBUS_TYPE_VARIANT) {
+                            dbus_message_iter_recurse(&connected_iter, &connected_variant);
+                            if (dbus_message_iter_get_arg_type(&connected_variant) == DBUS_TYPE_BOOLEAN) {
+                                dbus_message_iter_get_basic(&connected_variant, &connected);
+                            }
+                        }
+                    }
+                    dbus_message_unref(connected_reply);
+                }
+                
+                if (connected) {
+                    DBusMessage *name_reply = get_property(conn, object_path, BLUETOOTH_DEVICE_INTERFACE, "Name");
+                    if (name_reply) {
+                        DBusMessageIter name_iter, name_variant;
+                        const char *name_value = NULL;
+                        
+                        if (dbus_message_iter_init(name_reply, &name_iter)) {
+                            if (dbus_message_iter_get_arg_type(&name_iter) == DBUS_TYPE_VARIANT) {
+                                dbus_message_iter_recurse(&name_iter, &name_variant);
+                                if (dbus_message_iter_get_arg_type(&name_variant) == DBUS_TYPE_STRING) {
+                                    dbus_message_iter_get_basic(&name_variant, &name_value);
+                                    if (name_value) {
+                                        strncpy(device_name, name_value, BLUETOOTH_DEVICE_NAME_LEN - 1);
+                                        device_name[BLUETOOTH_DEVICE_NAME_LEN - 1] = '\0';
+                                        dbus_message_unref(name_reply);
+                                        dbus_message_unref(reply);
+                                        dbus_connection_unref(conn);
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        dbus_message_unref(name_reply);
+                    }
+                }
+            }
+            
+            dbus_message_iter_next(&dict_iter);
+        }
+        
+        dbus_message_iter_next(&array_iter);
+    }
+    
+    dbus_message_unref(reply);
+    dbus_connection_unref(conn);
+}
+
+/* Legacy functions kept for compatibility but not used */
+void find_bluetooth_rfkill_device(char *rfkill_device) {
+    rfkill_device[0] = '\0';
+}
+
+short bluetooth_is_enabled(char *rfkill_device) {
+    (void)rfkill_device; /* Unused */
+    return !bluetooth_is_blocked();
 }

@@ -67,30 +67,31 @@ int main(void) {
 
     /* -----BATTERY----- */
 
-    get_battery_name(battery_name);
+    if (get_battery_name(battery_name)) {
 
-    get_battery_status(battery_name, battery_status);
-    battery_capacity = get_battery_capacity(battery_name);
+        get_battery_status(battery_name, battery_status);
+        battery_capacity = get_battery_capacity(battery_name);
 
-    if (strcmp(battery_status, BATTERY_DISCHARGING_STATE)) {
-        printf("%s", BATTERY_CHARGING_SYMBOL);
-    } else {
-        if (battery_capacity < 20) {
-            printf(BATTERY_EMPTY_SYMBOL);
-        } else if (battery_capacity < 40) {
-            printf(BATTERY_QUARTER_SYMBOL);
-        } else if (battery_capacity < 60) {
-            printf(BATTERY_HALF_SYMBOL);
-        } else if (battery_capacity < 80) {
-            printf(BATTERY_THREE_QUARTERS_SYMBOL);
+        if (strcmp(battery_status, BATTERY_DISCHARGING_STATE)) {
+            printf("%s", BATTERY_CHARGING_SYMBOL);
         } else {
-            printf(BATTERY_FULL_SYMBOL);
+            if (battery_capacity < 20) {
+                printf(BATTERY_EMPTY_SYMBOL);
+            } else if (battery_capacity < 40) {
+                printf(BATTERY_QUARTER_SYMBOL);
+            } else if (battery_capacity < 60) {
+                printf(BATTERY_HALF_SYMBOL);
+            } else if (battery_capacity < 80) {
+                printf(BATTERY_THREE_QUARTERS_SYMBOL);
+            } else {
+                printf(BATTERY_FULL_SYMBOL);
+            }
         }
+
+        printf(" %hd%%", battery_capacity);
+
+        printf(SEPARATOR_SYMBOL);
     }
-
-    printf(" %hd%%", battery_capacity);
-
-    printf(SEPARATOR_SYMBOL);
 
     /* -----NETWORK----- */
 

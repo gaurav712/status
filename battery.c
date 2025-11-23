@@ -12,41 +12,43 @@
 #define BATTERY_CAPACITY_FILE_NAME  "/capacity"
 #define BATTERY_STATUS_FILE_NAME    "/status"
 
-void get_battery_name(char *battery_name) {
+int get_battery_name(char *battery_name) {
 
     DIR *dirp;
     struct dirent *dir;
+    int found = 0;
+
+    battery_name[0] = '\0';
 
     if((dirp = opendir(POWER_SUPPLY_DIR)) == NULL) {
-        perror("opendir() failed!");
-        exit(1);
+        if(errno != ENOENT) {
+            perror("opendir() failed!");
+        }
+        return 0;
     }
 
-    while(1) {
-
-        if((dir = readdir(dirp)) == NULL) {
-            if(errno) {
-                perror("readdir() failed!");
-                exit(1);
-            } else {
-                break;
-            }
-        } else {
-            if(dir->d_name[0] == '.') {
-                continue;
-            } else {
-                if(!(strncmp(dir->d_name, BATTERY_NAME_PATTERN, strlen(BATTERY_NAME_PATTERN)))) {
-                    strcpy(battery_name, dir->d_name);
-                    break;
-                }
-            }
+    errno = 0;
+    while((dir = readdir(dirp)) != NULL) {
+        if(dir->d_name[0] == '.') {
+            continue;
         }
+
+        if(!(strncmp(dir->d_name, BATTERY_NAME_PATTERN, strlen(BATTERY_NAME_PATTERN)))) {
+            strcpy(battery_name, dir->d_name);
+            found = 1;
+            break;
+        }
+    }
+
+    if(!found && errno) {
+        perror("readdir() failed!");
     }
 
     if((closedir(dirp)) == -1) {
         perror("closedir() failed!");
-        exit(1);
     }
+
+    return found;
 }
 
 short get_battery_capacity(char *battery_name) {

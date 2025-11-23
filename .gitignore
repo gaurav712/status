@@ -1,4 +1,4 @@
 *.o
-.status
+status
 .cache/
 compile_commands.json

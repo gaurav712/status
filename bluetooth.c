@@ -10,6 +10,7 @@
 #define BLUETOOTH_BUS_NAME "org.bluez"
 #define BLUETOOTH_ADAPTER_INTERFACE "org.bluez.Adapter1"
 #define BLUETOOTH_DEVICE_INTERFACE "org.bluez.Device1"
+#define BLUETOOTH_BATTERY_INTERFACE "org.bluez.Battery1"
 #define DBUS_PROPERTIES_INTERFACE "org.freedesktop.DBus.Properties"
 #define DBUS_OBJECTMANAGER_INTERFACE "org.freedesktop.DBus.ObjectManager"
 
@@ -471,4 +472,150 @@ void find_bluetooth_rfkill_device(char *rfkill_device) {
 short bluetooth_is_enabled(char *rfkill_device) {
     (void)rfkill_device; /* Unused */
     return !bluetooth_is_blocked();
+}
+
+/* Get battery percentage string for connected device */
+char* get_connected_bluetooth_device_battery(void) {
+    static char battery_str[32];
+    DBusConnection *conn;
+    DBusError error;
+    DBusMessage *msg, *reply;
+    DBusMessageIter iter, array_iter, entry_iter, dict_iter, entry_iter2;
+    const char *object_path;
+    const char *interface_name;
+    const char *connected_device_path = NULL;
+    dbus_bool_t connected = 0;
+    
+    battery_str[0] = '\0';
+    
+    dbus_error_init(&error);
+    conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+    
+    if (!dbus_check_error(&error) || !conn) {
+        return battery_str;
+    }
+    
+    /* Find the connected device path */
+    msg = dbus_message_new_method_call(
+        BLUETOOTH_BUS_NAME,
+        "/",
+        DBUS_OBJECTMANAGER_INTERFACE,
+        "GetManagedObjects"
+    );
+    
+    if (!msg) {
+        dbus_connection_unref(conn);
+        return battery_str;
+    }
+    
+    dbus_message_append_args(msg,
+        DBUS_TYPE_INVALID
+    );
+    
+    reply = dbus_connection_send_with_reply_and_block(conn, msg, -1, &error);
+    dbus_message_unref(msg);
+    
+    if (!dbus_check_error(&error) || !reply) {
+        if (reply) dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return battery_str;
+    }
+    
+    if (!dbus_message_iter_init(reply, &iter)) {
+        dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return battery_str;
+    }
+    
+    if (dbus_message_iter_get_arg_type(&iter) != DBUS_TYPE_ARRAY) {
+        dbus_message_unref(reply);
+        dbus_connection_unref(conn);
+        return battery_str;
+    }
+    
+    dbus_message_iter_recurse(&iter, &array_iter);
+    
+    /* Step 1: Find connected device path */
+    while (dbus_message_iter_get_arg_type(&array_iter) == DBUS_TYPE_DICT_ENTRY) {
+        dbus_message_iter_recurse(&array_iter, &entry_iter);
+        
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_OBJECT_PATH) {
+            dbus_message_iter_next(&array_iter);
+            continue;
+        }
+        
+        dbus_message_iter_get_basic(&entry_iter, &object_path);
+        dbus_message_iter_next(&entry_iter);
+        
+        if (dbus_message_iter_get_arg_type(&entry_iter) != DBUS_TYPE_ARRAY) {
+            dbus_message_iter_next(&array_iter);
+            continue;
+        }
+        
+        dbus_message_iter_recurse(&entry_iter, &dict_iter);
+        
+        while (dbus_message_iter_get_arg_type(&dict_iter) == DBUS_TYPE_DICT_ENTRY) {
+            dbus_message_iter_recurse(&dict_iter, &entry_iter2);
+            
+            if (dbus_message_iter_get_arg_type(&entry_iter2) != DBUS_TYPE_STRING) {
+                dbus_message_iter_next(&dict_iter);
+                continue;
+            }
+            
+            dbus_message_iter_get_basic(&entry_iter2, &interface_name);
+            
+            if (strcmp(interface_name, BLUETOOTH_DEVICE_INTERFACE) == 0) {
+                DBusMessage *prop_reply = get_property(conn, object_path, BLUETOOTH_DEVICE_INTERFACE, "Connected");
+                if (prop_reply) {
+                    DBusMessageIter prop_iter, prop_variant;
+                    if (dbus_message_iter_init(prop_reply, &prop_iter)) {
+                        if (dbus_message_iter_get_arg_type(&prop_iter) == DBUS_TYPE_VARIANT) {
+                            dbus_message_iter_recurse(&prop_iter, &prop_variant);
+                            if (dbus_message_iter_get_arg_type(&prop_variant) == DBUS_TYPE_BOOLEAN) {
+                                dbus_message_iter_get_basic(&prop_variant, &connected);
+                                if (connected && !connected_device_path) {
+                                    connected_device_path = strdup(object_path);
+                                }
+                            }
+                        }
+                    }
+                    dbus_message_unref(prop_reply);
+                }
+            }
+            
+            dbus_message_iter_next(&dict_iter);
+        }
+        
+        dbus_message_iter_next(&array_iter);
+    }
+    
+    dbus_message_unref(reply);
+    
+    /* If no connected device found, return empty string */
+    if (!connected_device_path) {
+        dbus_connection_unref(conn);
+        return battery_str;
+    }
+    
+    /* Step 2: Get battery percentage from connected device */
+    DBusMessage *perc_reply = get_property(conn, connected_device_path, BLUETOOTH_BATTERY_INTERFACE, "Percentage");
+    if (perc_reply) {
+        DBusMessageIter perc_iter, perc_variant;
+        unsigned char percentage = 0;
+        if (dbus_message_iter_init(perc_reply, &perc_iter)) {
+            if (dbus_message_iter_get_arg_type(&perc_iter) == DBUS_TYPE_VARIANT) {
+                dbus_message_iter_recurse(&perc_iter, &perc_variant);
+                if (dbus_message_iter_get_arg_type(&perc_variant) == DBUS_TYPE_BYTE) {
+                    dbus_message_iter_get_basic(&perc_variant, &percentage);
+                    snprintf(battery_str, sizeof(battery_str), "%d%%", percentage);
+                }
+            }
+        }
+        dbus_message_unref(perc_reply);
+    }
+    
+    dbus_connection_unref(conn);
+    free((void*)connected_device_path);
+    
+    return battery_str;
 }

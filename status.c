@@ -133,10 +133,15 @@ int main(void) {
         /* -----Bluetooth is enabled (not blocked)----- */
         if (bluetooth_is_connected()) {
 
-            /* -----Bluetooth is connected, get device name----- */
+            /* -----Bluetooth is connected, get device name and battery----- */
             get_connected_bluetooth_device_name(bluetooth_device_name);
+            char *battery_info = get_connected_bluetooth_device_battery();
             if (bluetooth_device_name[0] != '\0') {
-                printf("%s %s", BLUETOOTH_CONNECTED_SYMBOL, bluetooth_device_name);
+                if (battery_info[0] != '\0') {
+                    printf("%s %s (%s)", BLUETOOTH_CONNECTED_SYMBOL, bluetooth_device_name, battery_info);
+                } else {
+                    printf("%s %s", BLUETOOTH_CONNECTED_SYMBOL, bluetooth_device_name);
+                }
             } else {
                 printf("%s", BLUETOOTH_CONNECTED_SYMBOL);
             }

@@ -15,4 +15,4 @@ short bluetooth_is_connected(void);
 void get_connected_bluetooth_device_name(char *device_name);
 char* get_connected_bluetooth_device_battery(void);
 
-#endif
+#endif // BLUETOOTH_H

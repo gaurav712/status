@@ -1,3 +1,5 @@
+#ifndef NETWORK_H
+#define NETWORK_H
 void find_rfkill_device(char *rfkill_device);
 
 void check_device_type(char *rfkill_device_dir_path);
@@ -11,3 +13,4 @@ void get_wireless_network_interface_name(void);
 short interface_is_wireless(const char *device);
 
 void get_bytes_transferred(float *down_bytes, float *up_bytes);
+#endif // NETWORK_H

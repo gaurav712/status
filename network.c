@@ -5,6 +5,7 @@
 #include <ifaddrs.h>
 #include <limits.h>
 #include <linux/wireless.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,7 +95,7 @@ void check_device_type(char *rfkill_device_dir_path) {
   }
 }
 
-short network_is_enabled(char *rfkill_device) {
+int8_t network_is_enabled(char *rfkill_device) {
 
   FILE *fp;
   short state = 0;
@@ -119,7 +120,7 @@ short network_is_enabled(char *rfkill_device) {
   return (state);
 }
 
-short network_is_connected(void) {
+int8_t network_is_connected(void) {
 
   FILE *fp;
   char dev_state[10];
@@ -171,12 +172,12 @@ void get_wireless_network_interface_name(void) {
 }
 
 /*
-    This is a pretty neat hack by a guy named "Edu Felipe" to check if an
-   interface is wireless. Check it out at
-   https://gist.github.com/edufelipe/6108057
-*/
+ * This is a pretty neat hack by a guy named "Edu Felipe" to check if an
+ * interface is wireless. Check it out at
+ * https://gist.github.com/edufelipe/6108057
+ */
 
-short interface_is_wireless(const char *device) {
+int8_t interface_is_wireless(const char *device) {
 
   int sock = -1;
   struct iwreq iw;

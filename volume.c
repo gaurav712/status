@@ -28,6 +28,7 @@ static void context_state_cb(pa_context *context, void *mainloop) {
 
 static void sink_info_cb(pa_context *c, const pa_sink_info *i, int eol,
                          void *userdata) {
+  (void)c; // Unused parameter
   if (eol > 0 || !i) {
     *((int *)userdata) = 1;
     return;

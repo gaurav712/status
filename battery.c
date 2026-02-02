@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +13,7 @@
 #define BATTERY_CAPACITY_FILE_NAME "/capacity"
 #define BATTERY_STATUS_FILE_NAME "/status"
 
-int get_battery_name(char *battery_name) {
+int8_t get_battery_name(char *battery_name) {
 
   DIR *dirp;
   struct dirent *dir;
@@ -52,7 +53,7 @@ int get_battery_name(char *battery_name) {
   return found;
 }
 
-short get_battery_capacity(char *battery_name) {
+int8_t get_battery_capacity(char *battery_name) {
 
   FILE *fp;
   char battery_path[PATH_MAX] = POWER_SUPPLY_DIR;

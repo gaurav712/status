@@ -7,7 +7,7 @@
 
 static short volume_result = 0;
 static short mute_result = 0;
-static int icon_type_result = VOLUME_ICON_SPEAKER;
+static int icon_type_result = IC_SPEAKER;
 static int results_cached = 0;
 
 static void context_state_cb(pa_context *context, void *mainloop) {
@@ -76,11 +76,11 @@ static void sink_info_cb(pa_context *c, const pa_sink_info *i, int eol,
   }
 
   if (is_headset && i->name && strstr(i->name, "bluez") != NULL) {
-    icon_type_result = VOLUME_ICON_BLUETOOTH_HEADSET;
+    icon_type_result = IC_BT_HEADSET;
   } else if (is_headset || is_headphone) {
-    icon_type_result = VOLUME_ICON_HEADPHONE;
+    icon_type_result = IC_HEADPHONE;
   } else {
-    icon_type_result = VOLUME_ICON_SPEAKER;
+    icon_type_result = IC_SPEAKER;
   }
 
   *((int *)userdata) = 1;

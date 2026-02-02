@@ -17,7 +17,7 @@ const char *VolumeIcons[] = {
     "\uf466"      // MUTE
 };
 
-enum VolumeIcon { IC_SPEAKER, IC_HEADPHONE, IC_BT_HEADSET, IC_MUTE };
+// VolumeIcon enum defined in volume.h
 
 #define RFKILL_DEV_NAME_LEN 10
 
@@ -87,16 +87,8 @@ int main(void) {
   /* -----VOLUME----- */
 
   if (!get_mute()) {
-    int icon_type = get_volume_icon_type();
-    const char *icon;
-    if (icon_type == VOLUME_ICON_BLUETOOTH_HEADSET) {
-      icon = VolumeIcons[IC_BT_HEADSET];
-    } else if (icon_type == VOLUME_ICON_HEADPHONE) {
-      icon = VolumeIcons[IC_HEADPHONE];
-    } else {
-      icon = VolumeIcons[IC_SPEAKER];
-    }
-    printf("%s %hd%%", icon, get_volume());
+    enum VolumeIcon icon_type = get_volume_icon_type();
+    printf("%s %hd%%", VolumeIcons[icon_type], get_volume());
   } else {
     printf("%s", VolumeIcons[IC_MUTE]);
   }

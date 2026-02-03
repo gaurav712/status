@@ -1,14 +1,15 @@
 #include "volume.h"
 
 #include <pulse/pulseaudio.h>
+#include <stdint.h>
 #include <string.h>
 
 #define APP_NAME "status"
 
-static short volume_result = 0;
-static short mute_result = 0;
-static int icon_type_result = IC_SPEAKER;
-static int results_cached = 0;
+static uint8_t volume_result = 0;
+static uint8_t mute_result = 0;
+static uint8_t icon_type_result = IC_SPEAKER;
+static uint8_t results_cached = 0;
 
 static void context_state_cb(pa_context *context, void *mainloop) {
   if (!context || !mainloop)
@@ -136,17 +137,17 @@ cleanup:
   results_cached = 1;
 }
 
-short get_volume(void) {
+uint8_t get_volume(void) {
   get_sink_info();
   return volume_result;
 }
 
-short get_mute(void) {
+uint8_t get_mute(void) {
   get_sink_info();
   return mute_result;
 }
 
-int get_volume_icon_type(void) {
+uint8_t get_volume_icon_type(void) {
   get_sink_info();
   return icon_type_result;
 }

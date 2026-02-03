@@ -9,16 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define POWER_SUPPLY_DIR "/sys/class/power_supply"
-#define BATTERY_NAME_PATTERN "BAT"
-#define BATTERY_CAPACITY_FILE_NAME "/capacity"
-#define BATTERY_STATUS_FILE_NAME "/status"
-
 int8_t get_battery_name(char *battery_name) {
 
   DIR *dirp;
   struct dirent *dir;
-  int found = 0;
+  int8_t found = 0;
 
   battery_name[0] = '\0';
 
@@ -29,15 +24,13 @@ int8_t get_battery_name(char *battery_name) {
     return 0;
   }
 
-  errno = 0;
   while ((dir = readdir(dirp)) != NULL) {
     if (dir->d_name[0] == '.') {
       continue;
     }
 
-    if (!(strncmp(dir->d_name, BATTERY_NAME_PATTERN,
-                  strlen(BATTERY_NAME_PATTERN)))) {
-      strcpy(battery_name, dir->d_name);
+    if (!(strncmp(dir->d_name, BAT_NAME_PATTERN, strlen(BAT_NAME_PATTERN)))) {
+      strncpy(battery_name, dir->d_name, strlen(dir->d_name) + 1);
       found = 1;
       break;
     }
@@ -58,18 +51,17 @@ int8_t get_battery_capacity(char *battery_name) {
 
   FILE *fp;
   char battery_path[PATH_MAX] = POWER_SUPPLY_DIR;
-  short capacity;
+  int8_t capacity;
 
-  strcat(battery_path, "/");
-  strcat(battery_path, battery_name);
-  strcat(battery_path, BATTERY_CAPACITY_FILE_NAME);
+  strncat(battery_path, battery_name, strlen(battery_name) + 1);
+  strncat(battery_path, BAT_CAPACITY_FILE, strlen(BAT_CAPACITY_FILE) + 1);
 
   if ((fp = fopen(battery_path, "r")) == NULL) {
     perror("fopen() error!");
     exit(1);
   }
 
-  fscanf(fp, "%hd", &capacity);
+  fscanf(fp, "%hhd", &capacity);
 
   if ((fclose(fp)) == EOF) {
     perror("fclose() error!");
@@ -84,9 +76,8 @@ void get_battery_status(char *battery_name, char *battery_status) {
   char battery_path[PATH_MAX] = POWER_SUPPLY_DIR;
   FILE *fp;
 
-  strcat(battery_path, "/");
-  strcat(battery_path, battery_name);
-  strcat(battery_path, BATTERY_STATUS_FILE_NAME);
+  strncat(battery_path, battery_name, strlen(battery_name) + 1);
+  strncat(battery_path, BAT_STATUS_FILE, strlen(BAT_STATUS_FILE) + 1);
 
   if ((fp = fopen(battery_path, "r")) == NULL) {
     perror("fopen() error!");

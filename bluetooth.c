@@ -575,7 +575,12 @@ char *get_connected_bluetooth_device_battery(void) {
                   DBUS_TYPE_BOOLEAN) {
                 dbus_message_iter_get_basic(&prop_variant, &connected);
                 if (connected && !connected_device_path) {
-                  connected_device_path = strdup(object_path);
+                  size_t path_len = strlen(object_path) + 1;
+                  connected_device_path = (char *)malloc(path_len);
+                  if (connected_device_path) {
+                    memcpy((void *)connected_device_path,
+                           (const void *)object_path, path_len);
+                  }
                 }
               }
             }

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror $(shell pkg-config --cflags dbus-1)
+CFLAGS=-Wall -Wextra -Werror -std=c99 $(shell pkg-config --cflags dbus-1)
 LDFLAGS=-l asound -lpulse -ldbus-1
 
 status: status.o network.o battery.o volume.o bluetooth.o

@@ -230,7 +230,7 @@ void get_bytes_transferred(float *down_bytes, float *up_bytes) {
   fscanf(down_bytes_file, "%ld", &bytes_received);
   fscanf(up_bytes_file, "%ld", &bytes_sent);
 
-  sleep(1);
+  usleep(WAIT_TIME_MICROSECONDS);
 
   rewind(down_bytes_file);
   rewind(up_bytes_file);

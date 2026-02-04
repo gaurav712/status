@@ -15,6 +15,10 @@
 #define NET_DEVICE_UP_BYTES_FILE "/statistics/tx_bytes"
 #define NET_DEVICE_DOWN_BYTES_FILE "/statistics/rx_bytes"
 
+#define WAIT_TIME_MICROSECONDS 500000 // 0.5 seconds
+
+extern int usleep (__useconds_t __useconds); // to shut up the compiler
+
 void find_rfkill_device(char *rfkill_device);
 int8_t is_device_wlan(char *rfkill_device_dir_path);
 int8_t network_is_enabled(char *rfkill_device);

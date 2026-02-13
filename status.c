@@ -22,7 +22,7 @@ const char *VolumeIcons[] = {
 #define RFKILL_DEV_NAME_LEN 10
 
 const char *NetworkIcons[] = {
-    "\uf1eb", // ENABLED
+    "\uf1eb ", // ENABLED
     "\uf072", // DISABLED
     "\uf019", // DOWNLOAD
     "\uf093 " // UPLOAD
